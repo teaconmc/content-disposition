@@ -23,6 +23,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -32,40 +33,99 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
+/**
+ * The instance representing a header value of {@code Content-Disposition} header.
+ */
 @ParametersAreNonnullByDefault
 @ReturnValuesAreNonnullByDefault
 public final class ContentDisposition {
+    /**
+     * Inline type for {@link ContentDisposition}s
+     */
     public static final String INLINE_TYPE = "inline";
+    /**
+     * Attachment type for {@link ContentDisposition}s
+     */
     public static final String ATTACHMENT_TYPE = "attachment";
 
+    /**
+     * Construct a {@link ContentDisposition} representing the header value given by input.
+     *
+     * @param input header value
+     * @return an instance of {@link ContentDisposition}
+     * @throws IllegalArgumentException when a parse error raised
+     */
     public static ContentDisposition parse(String input) {
         return new ContentDisposition(input);
     }
 
+    /**
+     * Construct an inline {@link ContentDisposition} without any parameter.
+     *
+     * @return an instance of {@link ContentDisposition}
+     */
     public static ContentDisposition inline() {
         return new ContentDisposition(new Builder(INLINE_TYPE));
     }
 
+    /**
+     * Construct an inline {@link ContentDisposition} whose filename is specified by the path.
+     * Only the last segment of the given path is used.
+     *
+     * @return an instance of {@link ContentDisposition}
+     */
     public static ContentDisposition inline(Path path) {
         return new ContentDisposition(new Builder(INLINE_TYPE).filename(path.getFileName().toString()));
     }
 
+    /**
+     * Construct an inline {@link ContentDisposition} whose filename is specified by the path string.
+     * Only the last segment of the given path string is used.
+     *
+     * @return an instance of {@link ContentDisposition}
+     * @throws InvalidPathException if the path string cannot be converted to a {@link Path}
+     */
     public static ContentDisposition inline(String path) {
         return new ContentDisposition(new Builder(INLINE_TYPE).filename(Path.of(path).getFileName().toString()));
     }
 
+    /**
+     * Construct an attachment {@link ContentDisposition} without any parameter.
+     *
+     * @return an instance of {@link ContentDisposition}
+     */
     public static ContentDisposition attachment() {
         return new ContentDisposition(new Builder(ATTACHMENT_TYPE));
     }
 
+    /**
+     * Construct an attachment {@link ContentDisposition} whose filename is specified by the path.
+     * Only the last segment of the given path is used.
+     *
+     * @return an instance of {@link ContentDisposition}
+     */
     public static ContentDisposition attachment(Path path) {
         return new ContentDisposition(new Builder(ATTACHMENT_TYPE).filename(path.getFileName().toString()));
     }
 
+    /**
+     * Construct an attachment {@link ContentDisposition} whose filename is specified by the path string.
+     * Only the last segment of the given path string is used.
+     *
+     * @return an instance of {@link ContentDisposition}
+     * @throws InvalidPathException if the path string is unable to be converted to a {@link Path}
+     */
     public static ContentDisposition attachment(String path) {
         return new ContentDisposition(new Builder(ATTACHMENT_TYPE).filename(Path.of(path).getFileName().toString()));
     }
 
+    /**
+     * Construct a builder for a {@link ContentDisposition} whose type is given.
+     *
+     * @param type the given type
+     * @return the builder
+     * @throws IllegalArgumentException if the type has any character which cannot be encoded as a header value
+     */
     public static ContentDisposition.Builder type(String type) {
         return new Builder(type);
     }
@@ -85,22 +145,49 @@ public final class ContentDisposition {
         this.parms = builder.parms.isEmpty() ? Collections.emptyMap() : Collections.unmodifiableMap(builder.parms);
     }
 
+    /**
+     * Return the type of the {@link ContentDisposition}.
+     *
+     * @return the type
+     */
     public String getType() {
         return this.type;
     }
 
+    /**
+     * Return whether it is an inline {@link ContentDisposition} or not, which is equivalent to
+     * {@code getType().equals(INLINE_TYPE)}.
+     *
+     * @return the type is inline type or not
+     */
     public boolean isInline() {
         return INLINE_TYPE.equals(this.type);
     }
 
+    /**
+     * Return whether it is an attachment {@link ContentDisposition} or not, which is equivalent to
+     * {@code getType().equals(ATTACHMENT_TYPE)}.
+     *
+     * @return the type is attachment type or not
+     */
     public boolean isAttachment() {
         return ATTACHMENT_TYPE.equals(this.type);
     }
 
+    /**
+     * Return the parameters of the {@link ContentDisposition}.
+     *
+     * @return the parameters
+     */
     public Map<String, String> getParameters() {
         return this.parms;
     }
 
+    /**
+     * Return the filename represented by the {@link ContentDisposition}, may be empty.
+     *
+     * @return an {@link Optional} of the filename
+     */
     public Optional<String> getFilename() {
         var key = "filename*0";
         var part = this.parms.getOrDefault(key + "*", this.parms.get(key));
@@ -120,6 +207,22 @@ public final class ContentDisposition {
         return Optional.ofNullable(this.parms.getOrDefault(key + "*", this.parms.get(key)));
     }
 
+    /**
+     * Check if two {@link ContentDisposition}s are the same (the order will be checked if
+     * {@code strict} is set to {@code true}). For example:
+     *
+     * <pre>{@code
+     *     var a = parse("inline; a=foo; b=bar");
+     *     var b = parse("inline; b=bar; a=foo");
+     *
+     *     a.equals(b, true); // false, the order must be consistent in strict mode
+     *     a.equals(b, false); // true, the order can be arbitrary here
+     * }</pre>
+     *
+     * @param that   another instance
+     * @param strict strict mode
+     * @return {@code true} if they are the same
+     */
     public boolean equals(ContentDisposition that, boolean strict) {
         if (!this.type.equals(that.type)) {
             return false;
@@ -144,20 +247,48 @@ public final class ContentDisposition {
         return true;
     }
 
+    /**
+     * Check if two {@link ContentDisposition}s are the same (the order can be arbitrary).
+     * This method is an overload of {@link #equals(Object)}.
+     *
+     * @param that another instance
+     * @return {@code true} if they are the same
+     * @see #equals(Object)
+     * @see #equals(ContentDisposition, boolean)
+     */
     public boolean equals(ContentDisposition that) {
         return this.equals(that, false);
     }
 
+    /**
+     * Check if two {@link ContentDisposition}s are the same (the order can be arbitrary).
+     * There is another overload method with narrowed parameter type: {@link #equals(ContentDisposition)}.
+     *
+     * @param o another instance
+     * @return {@code true} if they are the same
+     * @see #equals(ContentDisposition)
+     * @see #equals(ContentDisposition, boolean)
+     */
     @Override
     public boolean equals(Object o) {
         return o == this || o instanceof ContentDisposition && this.equals((ContentDisposition) o, false);
     }
 
+    /**
+     * Calculate the hash code.
+     *
+     * @return the hash code.
+     */
     @Override
     public int hashCode() {
         return this.type.hashCode() + this.parms.hashCode();
     }
 
+    /**
+     * Return the string representation of the instance which can be used in header values.
+     *
+     * @return the string representation
+     */
     @Override
     public String toString() {
         var builder = new StringBuilder(this.type);
@@ -172,6 +303,11 @@ public final class ContentDisposition {
         return builder.toString();
     }
 
+    /**
+     * The builder for {@link ContentDisposition}s.
+     *
+     * @see ContentDisposition#type(String)
+     */
     public static final class Builder {
         private final String type;
         private final Map<String, String> parms;
@@ -182,6 +318,15 @@ public final class ContentDisposition {
             this.parms = new LinkedHashMap<>(4);
         }
 
+        /**
+         * Add a parameter (key-value pair) to the builder.
+         *
+         * @param key   the parameter key
+         * @param value the parameter value
+         * @return the builder itself
+         * @throws IllegalArgumentException if the key has already been added or the key-value pair has
+         *                                  any character which cannot be encoded as a header value
+         */
         public Builder parameter(String key, String value) {
             checkArgument(Context.TOKENS_PATTERN.matcher(key).matches(), "not a token: " + key);
             var canEncode = key.endsWith("*") || Context.TEXTS_PATTERN.matcher(value).matches();
@@ -191,6 +336,15 @@ public final class ContentDisposition {
             return this;
         }
 
+        /**
+         * Specify the filename of the {@link ContentDisposition} instance built by the builder.
+         * The {@code "filename"} parameter and the {@code "filename*"} parameter will be specified.
+         *
+         * @param filename the filename
+         * @return the builder itself
+         * @throws IllegalArgumentException if the {@code "filename"} or {@code "filename*"} key
+         *                                  has already been added
+         */
         public Builder filename(String filename) {
             checkArgument(!this.parms.containsKey("filename"), "parameter key exists: filename");
             checkArgument(!this.parms.containsKey("filename*"), "parameter key exists: filename*");
@@ -199,6 +353,11 @@ public final class ContentDisposition {
             return this;
         }
 
+        /**
+         * Build the {@link ContentDisposition} instance
+         *
+         * @return the instance
+         */
         public ContentDisposition build() {
             return new ContentDisposition(this);
         }
