@@ -17,6 +17,9 @@
  */
 package org.teacon.content_disposition;
 
+import edu.umd.cs.findbugs.annotations.ReturnValuesAreNonnullByDefault;
+
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +31,9 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
+@ParametersAreNonnullByDefault
+@ReturnValuesAreNonnullByDefault
 public final class ContentDisposition {
     public static final String INLINE_TYPE = "inline";
     public static final String ATTACHMENT_TYPE = "attachment";

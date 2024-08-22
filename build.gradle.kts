@@ -17,6 +17,7 @@ repositories {
 }
 
 dependencies {
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.8.6")
     testImplementation(platform("org.junit:junit-bom:5.9.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
