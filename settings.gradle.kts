@@ -1,2 +1,1 @@
-rootProject.name = "content-disposition"
-
+rootProject.name = "ContentDisposition"
